@@ -51,6 +51,14 @@ button {
   }
 }
 
+.card {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  padding: 20px;
+  margin: 20px 0;
+}
+
 .textarea {
   padding: 1rem 1.5rem;
   height: 300px;
@@ -625,7 +633,7 @@ button {
   font-size: 1rem;
   font-weight: 600;
   color: #ffffff;
-  background-color: #00cc66;
+  background-color: #b40000;
   padding: 0.25rem 0.75rem;
   border-radius: 1rem;
 }

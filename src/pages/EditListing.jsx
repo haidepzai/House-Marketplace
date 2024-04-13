@@ -1,35 +1,36 @@
 import React from "react";
 import { useState, useEffect } from "react";
-import { doc, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.config";
 import { useOutletContext, useNavigate, useParams } from "react-router-dom";
 import Spinner from "../components/Spinner";
 import { toast } from "react-toastify";
-import useFormData from '../hooks/useFormData';
+import useFormData from "../hooks/useFormData";
 import { storeImage } from "../utils/firebaseStorage";
+import useFetchListing from "../hooks/useFetchListing";
 
 function EditListing() {
   const navigate = useNavigate();
-  const params = useParams();
+  const { listingId } = useParams();
   const { userId } = useOutletContext();
   const [geolocationEnabled, setGeolocationEnabled] = useState(true);
+  const { listing, loading: fetchLoading } = useFetchListing(listingId);
   const [loading, setLoading] = useState(false);
-  const [listing, setListing] = useState(false);
   const [formData, setFormData, onMutate] = useFormData({
-    type: 'rent',
-    name: '',
+    type: "rent",
+    name: "",
     bedrooms: 1,
     bathrooms: 1,
     parking: false,
     furnished: false,
-    address: '',
+    address: "",
     offer: false,
     regularPrice: 0,
     discountedPrice: 0,
     images: {},
     latitude: 0,
     longitude: 0,
-});
+  });
 
   // Destructure
   const {
@@ -48,31 +49,25 @@ function EditListing() {
     longitude,
   } = formData;
 
+  // Update formData once listing data is available
+  useEffect(() => {
+    if (listing) {
+      setFormData({
+        ...listing,
+        address: listing.location, // Assume there's a 'location' field in your listing data
+        images: {},
+      });
+    }
+  }, [listing, setFormData]);
+
+
   // Redirect if listing is not user's
   useEffect(() => {
     if (listing && listing.userRef !== userId) {
       toast.error("You can not edit this page");
       navigate("/");
     }
-  }, [userId, navigate, listing.userId]);
-
-  // Fetch listing to edit (prefil)
-  useEffect(() => {
-    setLoading(true);
-    const fetchListing = async () => {
-      const docRef = doc(db, "listings", params.listingId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setListing(docSnap.data());
-        setFormData({ ...docSnap.data(), address: docSnap.data().location });
-        setLoading(false);
-      } else {
-        navigate("/");
-        toast.error("Listing not found");
-      }
-    };
-    fetchListing();
-  }, [params.listingId, navigate]);
+  }, [userId, navigate, listing]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -146,7 +141,7 @@ function EditListing() {
       delete formDataCopy.address;
       !formDataCopy.offer && delete formDataCopy.discountedPrice;
 
-      const docRef = doc(db, "listings", params.listingId);
+      const docRef = doc(db, "listings", listingId);
       await updateDoc(docRef, formDataCopy);
 
       setLoading(false);
