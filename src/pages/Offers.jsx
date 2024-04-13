@@ -1,100 +1,30 @@
-import React from "react";
-import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+
 import {
-  collection,
-  getDocs,
-  query,
   where,
   orderBy,
   limit,
-  startAfter,
 } from "firebase/firestore";
-import { db } from "../firebase.config";
-import { toast } from "react-toastify";
+import React, { useState, useMemo } from "react";
 import Spinner from "../components/Spinner";
 import ListingItem from "../components/ListingItem";
+import useFetchListings from "../hooks/useFetchListings";
 
 function Offers() {
-  const [listings, setListings] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [lastFetchedListings, setLastFetchedListings] = useState(null);
+  const [startFrom, setStartFrom] = useState(null);
 
-  const params = useParams();
+  const constraints = useMemo(() => [
+    where("offer", "==", true),
+    orderBy("timestamp", "desc"),
+    limit(1)
+  ], []);
 
-  useEffect(() => {
-    const fetchListings = async () => {
-      try {
-        // Get reference
-        const listingsRef = collection(db, "listings");
+  const { listings, loading, lastFetchedListing } = useFetchListings({
+    constraints: constraints,
+    startFrom: startFrom
+  });
 
-        // Create a query
-        const q = query(
-          listingsRef,
-          where("offer", "==", true),
-          orderBy("timestamp", "desc"),
-          limit(10)
-        );
-
-        // Execute query
-        const querySnapshot = await getDocs(q);
-
-        const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
-        setLastFetchedListings(lastVisible);
-
-        const listings = [];
-
-        querySnapshot.forEach((doc) => {
-          return listings.push({
-            id: doc.id,
-            data: doc.data(),
-          });
-        });
-
-        setListings(listings);
-        setLoading(false);
-      } catch (error) {
-        toast.error("Could not fetch listings");
-      }
-    };
-    fetchListings();
-  }, []);
-
-  // Pagination / Load More
-  const onFetchMoreListings = async () => {
-    try {
-      // Get reference
-      const listingsRef = collection(db, "listings");
-
-      // Create a query
-      const q = query(
-        listingsRef,
-        where("offer", "==", true),
-        orderBy("timestamp", "desc"),
-        startAfter(lastFetchedListings),
-        limit(10)
-      );
-
-      // Execute query
-      const querySnapshot = await getDocs(q);
-
-      const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
-      setLastFetchedListings(lastVisible);
-
-      const listings = [];
-
-      querySnapshot.forEach((doc) => {
-        return listings.push({
-          id: doc.id,
-          data: doc.data(),
-        });
-      });
-
-      setListings((prevState) => [...prevState, ...listings]);
-      setLoading(false);
-    } catch (error) {
-      toast.error("Could not fetch listings");
-    }
+  const onFetchMoreListings = () => {
+    setStartFrom(lastFetchedListing);
   };
 
   return (
@@ -105,30 +35,25 @@ function Offers() {
 
       {loading ? (
         <Spinner />
-      ) : listings && listings.length > 0 ? (
+      ) : (
         <>
-          <main>
-            <ul className="categoryListings">
-              {listings.map((listing) => (
-                <ListingItem
-                  listing={listing.data}
-                  id={listing.id}
-                  key={listing.id}
-                />
-              ))}
-            </ul>
-          </main>
-
-          <br />
-          <br />
-          {lastFetchedListings && (
-            <p className="loadMore" onClick={onFetchMoreListings}>
-              Load More
-            </p>
+          {listings.length > 0 ? (
+            <main>
+              <ul className="categoryListings">
+                {listings.map(listing => (
+                  <ListingItem key={listing.id} listing={listing.data} id={listing.id} />
+                ))}
+              </ul>
+              {lastFetchedListing && (
+                <p className="loadMore" onClick={onFetchMoreListings}>
+                  Load More
+                </p>
+              )}
+            </main>
+          ) : (
+            <p>There are no current offers</p>
           )}
         </>
-      ) : (
-        <p>There are no current offers</p>
       )}
     </div>
   );
