@@ -1,22 +1,12 @@
 import React from "react";
 import { useState, useEffect } from "react";
-import {
-  getStorage,
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-} from "firebase/storage";
-import {
-  doc,
-  updateDoc,
-  getDoc,
-  serverTimestamp,
-} from "firebase/firestore";
+import { doc, updateDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.config";
 import { useOutletContext, useNavigate, useParams } from "react-router-dom";
 import Spinner from "../components/Spinner";
 import { toast } from "react-toastify";
-import { v4 as uuidv4 } from "uuid";
+import useFormData from '../hooks/useFormData';
+import { storeImage } from "../utils/firebaseStorage";
 
 function EditListing() {
   const navigate = useNavigate();
@@ -25,21 +15,21 @@ function EditListing() {
   const [geolocationEnabled, setGeolocationEnabled] = useState(true);
   const [loading, setLoading] = useState(false);
   const [listing, setListing] = useState(false);
-  const [formData, setFormData] = useState({
-    type: "rent",
-    name: "",
+  const [formData, setFormData, onMutate] = useFormData({
+    type: 'rent',
+    name: '',
     bedrooms: 1,
     bathrooms: 1,
     parking: false,
     furnished: false,
-    address: "",
+    address: '',
     offer: false,
     regularPrice: 0,
     discountedPrice: 0,
     images: {},
     latitude: 0,
     longitude: 0,
-  });
+});
 
   // Destructure
   const {
@@ -61,7 +51,7 @@ function EditListing() {
   // Redirect if listing is not user's
   useEffect(() => {
     if (listing && listing.userRef !== userId) {
-        toast.error("You can not edit this page");
+      toast.error("You can not edit this page");
       navigate("/");
     }
   }, [userId, navigate, listing.userId]);
@@ -74,7 +64,7 @@ function EditListing() {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         setListing(docSnap.data());
-        setFormData({...docSnap.data(), address: docSnap.data().location})
+        setFormData({ ...docSnap.data(), address: docSnap.data().location });
         setLoading(false);
       } else {
         navigate("/");
@@ -133,101 +123,38 @@ function EditListing() {
     }
 
     // Store images in firebase
-    const storeImage = async (image) => {
-      return new Promise((resolve, reject) => {
-        const storage = getStorage();
-        const fileName = `${userId}-${image.name}-${uuidv4()}`;
-
-        const storageRef = ref(storage, "images/" + fileName);
-
-        const uploadTask = uploadBytesResumable(storageRef, image);
-
-        uploadTask.on(
-          "state_changed",
-          (snapshot) => {
-            const progress =
-              (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            console.log("Upload is " + progress + "% done");
-            switch (snapshot.state) {
-              case "paused":
-                console.log("Upload is paused");
-                break;
-              case "running":
-                console.log("Upload is running");
-                break;
-              default:
-                break;
-            }
-          },
-          (error) => {
-            reject(error);
-          },
-          () => {
-            // Handle successful uploads on complete
-            // For instance, get the download URL: https://firebasestorage.googleapis.com/...
-            getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-              resolve(downloadURL);
-            });
-          }
-        );
+    try {
+      const imgUrls = await Promise.all(
+        [...images].map((image) => storeImage(image))
+      ).catch(() => {
+        setLoading(false);
+        toast.error("There was an error uploading your images!");
+        return;
       });
-    };
 
-    const imgUrls = await Promise.all(
-      [...images].map((image) => storeImage(image))
-    ).catch(() => {
+      // Save to DB
+      const formDataCopy = {
+        ...formData,
+        imgUrls,
+        geolocation,
+        timestamp: serverTimestamp(),
+        userRef: userId,
+      };
+
+      formDataCopy.location = address;
+      delete formDataCopy.images;
+      delete formDataCopy.address;
+      !formDataCopy.offer && delete formDataCopy.discountedPrice;
+
+      const docRef = doc(db, "listings", params.listingId);
+      await updateDoc(docRef, formDataCopy);
+
       setLoading(false);
-      toast.error("There was an error uploading your images!");
-      return;
-    });
-
-    // Save to DB
-    const formDataCopy = {
-      ...formData,
-      imgUrls,
-      geolocation,
-      timestamp: serverTimestamp(),
-      userRef: userId,
-    };
-
-    formDataCopy.location = address;
-    delete formDataCopy.images;
-    delete formDataCopy.address;
-    !formDataCopy.offer && delete formDataCopy.discountedPrice;
-
-    const docRef = doc(db, "listings", params.listingId);
-    await updateDoc(docRef, formDataCopy);
-
-    setLoading(false);
-    toast.success("Your listing has been created!");
-    navigate(`/category/${formDataCopy.type}/${docRef.id}`);
-  };
-
-  const onMutate = async (e) => {
-    let boolean = null;
-
-    // if input is a actual boolean
-    if (e.target.value === "true") {
-      boolean = true;
-    }
-    if (e.target.value === "false") {
-      boolean = false;
-    }
-
-    // Files
-    if (e.target.files) {
-      setFormData((prevState) => ({
-        ...prevState,
-        images: e.target.files,
-      }));
-    }
-
-    // Text/Booleans/Numbers
-    if (!e.target.files) {
-      setFormData((prevState) => ({
-        ...prevState,
-        [e.target.id]: boolean ?? e.target.value, // if boolean is null then use e.target.value
-      }));
+      toast.success("Your listing has been created!");
+      navigate(`/category/${formDataCopy.type}/${docRef.id}`);
+    } catch (error) {
+      setLoading(false);
+      toast.error("Failed to upload images: " + error.message);
     }
   };
 
