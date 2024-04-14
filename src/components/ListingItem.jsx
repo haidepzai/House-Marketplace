@@ -46,20 +46,20 @@ function ListingItem({ listing, id, onDelete, onEdit }) {
         </div>
       </Link>
 
-      {onDelete && (
-        <DeleteIcon
-          className="removeIcon"
-          fill="rgb(231, 76, 60)"
-          onClick={() => onDelete(listing.id, listing.name)}
-        />
-      )}
-
-      {onEdit && (
-        <EditIcon
-          className="editIcon"
-          onClick={() => onEdit(listing.id, listing.name)}
-        />
-      )}
+      <div className="listingIcons">
+        {onDelete && (
+          <DeleteIcon
+            className="removeIcon"
+            onClick={() => onDelete(listing.id, listing.name)}
+          />
+        )}
+        {onEdit && (
+          <EditIcon
+            className="editIcon"
+            onClick={() => onEdit(listing.id, listing.name)}
+          />
+        )}
+      </div>
     </li>
   );
 }
