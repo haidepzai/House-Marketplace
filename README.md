@@ -1,6 +1,10 @@
-# Getting Started with Create React App
+# House Marketplace
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+React App (mobile first) with Firebase Backend.
+You can create an account (Email or OAuth). Create, Delete, Edit new houses.
+Explore houses for rent / sale, contact landlords.
+
+[House Marketplace](https://house-marketplace-plum-delta.vercel.app/)
 
 ## Available Scripts
 
