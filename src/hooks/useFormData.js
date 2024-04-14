@@ -9,7 +9,7 @@ const useFormData = (initialState) => {
 
         // Handle boolean values encoded as strings
         if (value === "true" || value === "false") {
-            parsedValue = value === "true";
+            parsedValue = value === "true"; // false or true
         }
 
         // Handle files separately if input type is file

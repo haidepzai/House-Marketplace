@@ -54,7 +54,7 @@ function EditListing() {
     if (listing) {
       setFormData({
         ...listing,
-        address: listing.location, // Assume there's a 'location' field in your listing data
+        address: listing.location,
         images: {},
       });
     }
