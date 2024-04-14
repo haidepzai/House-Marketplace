@@ -1,20 +1,22 @@
 import React from "react";
 import { useReducer } from "react";
-import { listingReducer, initialState } from "../reducers/listingReducer"
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { storeImage } from "../utils/firebaseStorage";
 import { db } from "../firebase.config";
 import { useOutletContext, useNavigate } from "react-router-dom";
-import Spinner from "../components/Spinner";
 import { toast } from "react-toastify";
 import { fetchGeolocation } from "../actions/GoogleMapsAction";
-import { storeImage } from "../utils/firebaseStorage";
+import { listingReducer, initialState } from "../reducers/listingReducer"
+import Spinner from "../components/Spinner";
 
 function CreateListing() {
   const [state, dispatch] = useReducer(listingReducer, initialState);
   const { formData, loading, geolocationEnabled } = state;
-  const navigate = useNavigate();
   const { userId } = useOutletContext();
-
+  
+  const navigate = useNavigate();
+  
+  // Destructuring
   const {
     type,
     name,
@@ -92,6 +94,7 @@ function CreateListing() {
         [...images].map((image) => storeImage(image, userId))
       );
 
+      // Save to DB
       const formDataCopy = {
         ...formData,
         imgUrls,

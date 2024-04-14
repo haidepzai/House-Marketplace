@@ -1,38 +1,25 @@
 import React from "react";
-import { useState, useEffect } from "react";
+import { useReducer, useEffect } from "react";
 import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.config";
 import { useOutletContext, useNavigate, useParams } from "react-router-dom";
-import Spinner from "../components/Spinner";
 import { toast } from "react-toastify";
-import useFormData from "../hooks/useFormData";
 import { storeImage } from "../utils/firebaseStorage";
+import { listingReducer, initialState } from "../reducers/listingReducer";
+import { fetchGeolocation } from "../actions/GoogleMapsAction";
 import useFetchListing from "../hooks/useFetchListing";
+import Spinner from "../components/Spinner";
 
 function EditListing() {
-  const navigate = useNavigate();
+  const [state, dispatch] = useReducer(listingReducer, initialState);
   const { listingId } = useParams();
   const { userId } = useOutletContext();
-  const [geolocationEnabled, setGeolocationEnabled] = useState(true);
-  const { listing, loading: fetchLoading } = useFetchListing(listingId);
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData, onMutate] = useFormData({
-    type: "rent",
-    name: "",
-    bedrooms: 1,
-    bathrooms: 1,
-    parking: false,
-    furnished: false,
-    address: "",
-    offer: false,
-    regularPrice: 0,
-    discountedPrice: 0,
-    images: {},
-    latitude: 0,
-    longitude: 0,
-  });
+  const { listing } = useFetchListing(listingId);
 
-  // Destructure
+  const navigate = useNavigate();
+
+  // Destructuring
+  const { formData, loading, geolocationEnabled } = state;
   const {
     type,
     name,
@@ -49,80 +36,78 @@ function EditListing() {
     longitude,
   } = formData;
 
-  // Update formData once listing data is available
   useEffect(() => {
-    if (listing) {
-      setFormData({
-        ...listing,
-        address: listing.location,
-        images: {},
+    // Redirect if listing is not user's
+    if (listing && listing.userRef !== userId) {
+      toast.error("You cannot edit this listing");
+      navigate("/");
+      // Update formData once listing data is available
+    } else if (listing) {
+      dispatch({
+        type: "UPDATE_FORM_DATA",
+        payload: {
+          ...listing,
+          address: listing.location,
+          images: [],
+        },
       });
     }
-  }, [listing, setFormData]);
+  }, [listing, navigate, userId]);
 
-
-  // Redirect if listing is not user's
-  useEffect(() => {
-    if (listing && listing.userRef !== userId) {
-      toast.error("You can not edit this page");
-      navigate("/");
-    }
-  }, [userId, navigate, listing]);
+  const onMutate = (e) => {
+    const { id, value, files } = e.target;
+    let newValue =
+      id === "images"
+        ? files
+        : value === "true"
+        ? true
+        : value === "false"
+        ? false
+        : value;
+    dispatch({ type: "SET_FIELD", field: id, value: newValue });
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    dispatch({ type: "SET_LOADING", payload: true });
 
-    setLoading(true);
-
-    if (discountedPrice >= regularPrice) {
-      setLoading(false);
+    // Perform validations and other logic...
+    if (formData.discountedPrice >= formData.regularPrice) {
+      dispatch({ type: "SET_LOADING", payload: false });
       toast.error(
         "The discounted price cannot be greater than the regular price!"
       );
       return;
     }
 
-    if (images.length > 6) {
-      setLoading(false);
+    if (formData.images.length > 6) {
+      dispatch({ type: "SET_LOADING", payload: false });
       toast.error("You can only upload 6 images!");
       return;
     }
 
-    let geolocation = {};
-    let location;
+    const { lat, lng, error } = await fetchGeolocation(
+      address,
+      geolocationEnabled,
+      process.env.REACT_APP_GOOGLE_API,
+      latitude,
+      longitude
+    );
 
-    if (geolocationEnabled) {
-      const response = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${address}&key=${process.env.REACT_APP_GOOGLE_API}`
-      );
-
-      const data = await response.json();
-
-      geolocation.lat = data.results[0]?.geometry.location.lat ?? 0;
-      geolocation.lng = data.results[0]?.geometry.location.lng ?? 0;
-
-      location =
-        data.status === "ZERO_RESULTS"
-          ? undefined
-          : data.results[0]?.formatted_address;
-
-      if (location === undefined || location.includes("undefined")) {
-        setLoading(false);
-        toast.error("Please enter a correct address");
-        return;
-      }
-    } else {
-      // From fields
-      geolocation.lat = latitude;
-      geolocation.lng = longitude;
+    if (error) {
+      dispatch({ type: "SET_LOADING", payload: false });
+      toast.error(error);
+      return;
     }
+
+    let geolocation = { lat, lng };
 
     // Store images in firebase
     try {
       const imgUrls = await Promise.all(
         [...images].map((image) => storeImage(image))
       ).catch(() => {
-        setLoading(false);
+        dispatch({ type: "SET_LOADING", payload: false });
         toast.error("There was an error uploading your images!");
         return;
       });
@@ -144,11 +129,11 @@ function EditListing() {
       const docRef = doc(db, "listings", listingId);
       await updateDoc(docRef, formDataCopy);
 
-      setLoading(false);
-      toast.success("Your listing has been created!");
+      dispatch({ type: "SET_LOADING", payload: false });
+      toast.success("Your listing has been edited!");
       navigate(`/category/${formDataCopy.type}/${docRef.id}`);
     } catch (error) {
-      setLoading(false);
+      dispatch({ type: "SET_LOADING", payload: false });
       toast.error("Failed to upload images: " + error.message);
     }
   };
