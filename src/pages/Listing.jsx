@@ -1,7 +1,8 @@
 import React from "react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
+import GoogleMaps from "../components/GoogleMaps";
+//import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import { getAuth } from "firebase/auth";
 import Spinner from "../components/Spinner";
 import shareIcon from "../assets/svg/shareIcon.svg";
@@ -112,6 +113,12 @@ function Listing() {
         <p className="listingLocationTitle">Location</p>
 
         <div className="leafletContainer">
+          <GoogleMaps
+            lat={listing.geolocation.lat}
+            lng={listing.geolocation.lng}
+          />
+
+          {/*     Leaflet      
           <MapContainer
             style={{ height: "100%", width: "100%" }}
             center={[listing.geolocation.lat, listing.geolocation.lng]}
@@ -127,7 +134,7 @@ function Listing() {
             >
               <Popup>{listing.location}</Popup>
             </Marker>
-          </MapContainer>
+          </MapContainer> */}
         </div>
 
         {auth.currentUser?.uid !== listing.userRef && (
