@@ -1,6 +1,6 @@
 import React from "react";
-import { useState } from "react";
-import useFormData from "../hooks/useFormData";
+import { useReducer } from "react";
+import { listingReducer, initialState } from "../reducers/listingReducer"
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "../firebase.config";
 import { useOutletContext, useNavigate } from "react-router-dom";
@@ -10,27 +10,11 @@ import { fetchGeolocation } from "../actions/GoogleMapsAction";
 import { storeImage } from "../utils/firebaseStorage";
 
 function CreateListing() {
+  const [state, dispatch] = useReducer(listingReducer, initialState);
+  const { formData, loading, geolocationEnabled } = state;
   const navigate = useNavigate();
   const { userId } = useOutletContext();
-  const [geolocationEnabled, setGeolocationEnabled] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData, onMutate] = useFormData({
-    type: "rent",
-    name: "",
-    bedrooms: 1,
-    bathrooms: 1,
-    parking: false,
-    furnished: false,
-    address: "",
-    offer: false,
-    regularPrice: 0,
-    discountedPrice: 0,
-    images: {},
-    latitude: 0,
-    longitude: 0,
-  });
 
-  // Destructure
   const {
     type,
     name,
@@ -47,13 +31,33 @@ function CreateListing() {
     longitude,
   } = formData;
 
+  const onMutate = (e) => {
+    const { id, value, files } = e.target;
+    let newValue = value;
+
+    switch (id) {
+      case "parking":
+      case "furnished":
+      case "offer":
+        newValue = value === "true";
+        break;
+      case "images":
+        newValue = files;
+        break;
+      default:
+        newValue = value;
+        break;
+    }
+
+    dispatch({ type: "SET_FIELD", field: id, value: newValue });
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
-
-    setLoading(true);
+    dispatch({ type: "SET_LOADING", payload: true });
 
     if (discountedPrice >= regularPrice) {
-      setLoading(false);
+      dispatch({ type: "SET_LOADING", payload: false });
       toast.error(
         "The discounted price cannot be greater than the regular price!"
       );
@@ -61,7 +65,7 @@ function CreateListing() {
     }
 
     if (images.length > 6) {
-      setLoading(false);
+      dispatch({ type: "SET_LOADING", payload: false });
       toast.error("You can only upload 6 images!");
       return;
     }
@@ -75,7 +79,7 @@ function CreateListing() {
     );
 
     if (error) {
-      setLoading(false);
+      dispatch({ type: "SET_LOADING", payload: false });
       toast.error(error);
       return;
     }
@@ -86,13 +90,8 @@ function CreateListing() {
     try {
       const imgUrls = await Promise.all(
         [...images].map((image) => storeImage(image, userId))
-      ).catch(() => {
-        setLoading(false);
-        toast.error("There was an error uploading your images!");
-        return;
-      });
+      );
 
-      // Save to DB
       const formDataCopy = {
         ...formData,
         imgUrls,
@@ -104,15 +103,16 @@ function CreateListing() {
       formDataCopy.location = address;
       delete formDataCopy.images;
       delete formDataCopy.address;
-      !formDataCopy.offer && delete formDataCopy.discountedPrice;
+      if (!formDataCopy.offer) {
+        delete formDataCopy.discountedPrice;
+      }
 
       const docRef = await addDoc(collection(db, "listings"), formDataCopy);
-
-      setLoading(false);
+      dispatch({ type: "SET_LOADING", payload: false });
       toast.success("Your listing has been created!");
-      navigate(`/category/${formDataCopy.type}/${docRef.id}`);
+      navigate(`/category/${type}/${docRef.id}`);
     } catch (error) {
-      setLoading(false);
+      dispatch({ type: "SET_LOADING", payload: false });
       toast.error("Failed to upload images: " + error.message);
     }
   };
