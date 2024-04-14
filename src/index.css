@@ -51,6 +51,10 @@ button {
   }
 }
 
+main {
+  padding-bottom: 5rem;
+}
+
 .card {
   background-color: #fff;
   border-radius: 8px;

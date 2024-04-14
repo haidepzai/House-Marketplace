@@ -6,16 +6,17 @@ import { db } from "../firebase.config";
 import { useOutletContext, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import { fetchGeolocation } from "../actions/GoogleMapsAction";
-import { listingReducer, initialState } from "../reducers/listingReducer"
+import { listingReducer, initialState } from "../reducers/listingReducer";
+import { validateListing } from '../utils/validateListing';
 import Spinner from "../components/Spinner";
 
 function CreateListing() {
   const [state, dispatch] = useReducer(listingReducer, initialState);
   const { formData, loading, geolocationEnabled } = state;
   const { userId } = useOutletContext();
-  
+
   const navigate = useNavigate();
-  
+
   // Destructuring
   const {
     type,
@@ -41,7 +42,7 @@ function CreateListing() {
       case "parking":
       case "furnished":
       case "offer":
-        newValue = value === "true";
+        newValue = value === "true"; // true or false
         break;
       case "images":
         newValue = files;
@@ -58,17 +59,13 @@ function CreateListing() {
     e.preventDefault();
     dispatch({ type: "SET_LOADING", payload: true });
 
-    if (discountedPrice >= regularPrice) {
+    const validationResponse = validateListing({
+      discountedPrice,
+      regularPrice,
+      images,
+    });
+    if (!validationResponse.isValid) {
       dispatch({ type: "SET_LOADING", payload: false });
-      toast.error(
-        "The discounted price cannot be greater than the regular price!"
-      );
-      return;
-    }
-
-    if (images.length > 6) {
-      dispatch({ type: "SET_LOADING", payload: false });
-      toast.error("You can only upload 6 images!");
       return;
     }
 
@@ -79,13 +76,11 @@ function CreateListing() {
       latitude,
       longitude
     );
-
     if (error) {
       dispatch({ type: "SET_LOADING", payload: false });
       toast.error(error);
       return;
     }
-
     let geolocation = { lat, lng };
 
     // Store images in firebase

@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 import { storeImage } from "../utils/firebaseStorage";
 import { listingReducer, initialState } from "../reducers/listingReducer";
 import { fetchGeolocation } from "../actions/GoogleMapsAction";
+import { validateListing } from "../utils/validateListing";
 import useFetchListing from "../hooks/useFetchListing";
 import Spinner from "../components/Spinner";
 
@@ -72,17 +73,13 @@ function EditListing() {
     dispatch({ type: "SET_LOADING", payload: true });
 
     // Perform validations and other logic...
-    if (formData.discountedPrice >= formData.regularPrice) {
+    const validationResponse = validateListing({
+      discountedPrice,
+      regularPrice,
+      images,
+    });
+    if (!validationResponse.isValid) {
       dispatch({ type: "SET_LOADING", payload: false });
-      toast.error(
-        "The discounted price cannot be greater than the regular price!"
-      );
-      return;
-    }
-
-    if (formData.images.length > 6) {
-      dispatch({ type: "SET_LOADING", payload: false });
-      toast.error("You can only upload 6 images!");
       return;
     }
 
@@ -93,13 +90,11 @@ function EditListing() {
       latitude,
       longitude
     );
-
     if (error) {
       dispatch({ type: "SET_LOADING", payload: false });
       toast.error(error);
       return;
     }
-
     let geolocation = { lat, lng };
 
     // Store images in firebase
