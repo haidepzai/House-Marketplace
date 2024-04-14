@@ -4,6 +4,7 @@ import { ReactComponent as DeleteIcon } from "../assets/svg/deleteIcon.svg";
 import { ReactComponent as EditIcon } from "../assets/svg/editIcon.svg";
 import bedIcon from "../assets/svg/bedIcon.svg";
 import bathtubIcon from "../assets/svg/bathtubIcon.svg";
+import { formatNumber } from "../utils/formatNumber";
 
 function ListingItem({ listing, id, onDelete, onEdit }) {
   return (
@@ -23,13 +24,9 @@ function ListingItem({ listing, id, onDelete, onEdit }) {
 
           <p className="categoryListingPrice">
             $
-            {listing.offer
-              ? listing.discountedPrice
-                  .toString()
-                  .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-              : listing.regularPrice
-                  .toString()
-                  .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+            {formatNumber(
+              listing.offer ? listing.discountedPrice : listing.regularPrice
+            )}
             {listing.type === "rent" && " /Month"}
           </p>
           <div className="categoryListingInfoDiv">

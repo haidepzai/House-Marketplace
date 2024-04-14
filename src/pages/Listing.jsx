@@ -7,6 +7,7 @@ import { getAuth } from "firebase/auth";
 import Spinner from "../components/Spinner";
 import shareIcon from "../assets/svg/shareIcon.svg";
 import useFetchListing from "../hooks/useFetchListing";
+import { formatNumber } from '../utils/formatNumber';
 
 import { Navigation, Pagination, Scrollbar, A11y } from "swiper/modules";
 
@@ -72,13 +73,9 @@ function Listing() {
         <div className="card">
           <p className="listingName">
             {listing.name} - $
-            {listing.offer
-              ? listing.discountedPrice
-                  .toString()
-                  .replace(/\B(?=(\d{3})+(?!\d))/g, ",")
-              : listing.regularPrice
-                  .toString()
-                  .replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+            {formatNumber(
+              listing.offer ? listing.discountedPrice : listing.regularPrice
+            )}
           </p>
           <p className="listingLocation">{listing.location}</p>
           <p className="listingType">

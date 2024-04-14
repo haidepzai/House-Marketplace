@@ -1,10 +1,10 @@
 import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { orderBy, limit } from "firebase/firestore";
-
 import Spinner from "./Spinner";
 import { Swiper, SwiperSlide } from "swiper/react";
 import useFetchListings from "../hooks/useFetchListings";
+import { formatNumber } from "../utils/formatNumber";
 
 import { Navigation, Pagination, Scrollbar, A11y } from "swiper/modules";
 
@@ -54,8 +54,8 @@ function Slider() {
             >
               <p className="swiperSlideText">{data.name}</p>
               <p className="swiperSlidePrice">
-                ${data.discountedPrice ?? data.regularPrice}{" "}
-                {data.type === "rent" && "/month"}
+                ${formatNumber(data.discountedPrice ?? data.regularPrice)}
+                {data.type === "rent" && " /month"}
               </p>
             </div>
           </SwiperSlide>
